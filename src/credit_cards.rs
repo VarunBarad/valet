@@ -1,49 +1,108 @@
+use chrono::{Datelike, NaiveDate};
+use regex::Regex;
 use std::fs;
 use std::path::Path;
-use regex::Regex;
+use std::process::{exit, Command};
+use crate::Config;
 
-fn store_statement_hdfc(root_dir: &Path) -> std::io::Result<()> {
-  let card_name_pattern = Regex::new(r"5589").expect("HDFC: Invalid card name regex");
-  
-  // Find any matching files in downloads folder
-  let mut matches = Vec::new();
-  
-  for entry in fs::read_dir(root_dir)? {
-    let path = entry?.path();
-    if path.is_file() {
-      if let Some(file_name) = path.file_name().and_then(|s| s.to_str()) {
-        if card_name_pattern.is_match(file_name) {
-          matches.push(path);
+fn store_statement_hdfc(config: &Config) -> std::io::Result<()> {
+    let card_name_pattern = Regex::new(r"5589").expect("HDFC: Invalid card name regex");
+
+    // Find any matching files in downloads folder
+    let mut matches = Vec::new();
+
+    for entry in fs::read_dir(Path::new(&config.inbox_dir))? {
+        let path = entry?.path();
+        if path.is_file() {
+            if let Some(file_name) = path.file_name().and_then(|s| s.to_str()) {
+                if card_name_pattern.is_match(file_name) {
+                    matches.push(path);
+                }
+            }
         }
-      }
     }
-  }
-  
-  for m in matches {
-    println!("{}", m.display().to_string());
-  }
-  
-  // For each file
-  
-  // Unencrypt the file
-  
-  // Get the date of statement
-  
-  // Rename the file
-  
-  // Ensure correct directory exists
-  
-  // Copy renamed statement over to the target directory
-  
-  Ok(())
+
+    // For each file
+    for encrypted_file in matches {
+        let temp_file = Path::new(&config.temp_dir).join("unencrypted_hdfc.pdf");
+        
+        // Unencrypt the file
+        let unencryption_result = Command::new("qpdf")
+            .arg("--decrypt")
+            .arg(format!("--password={}", env!("CREDIT_CARD_HDFC_PASSWORD")).as_str())
+            .arg(encrypted_file.display().to_string().as_str())
+            .arg(temp_file.display().to_string().as_str())
+            .output()?;
+        
+        let status_code = unencryption_result.status.code().unwrap();
+        if status_code != 0 {
+            eprintln!(
+                "Error unencrypting HDFC credit-card statement. File: {}. Status code: {}. Command stdout: {}. Command stderr: {}.",
+                encrypted_file.display().to_string().as_str(),
+                status_code,
+                String::from_utf8_lossy(&unencryption_result.stdout),
+                String::from_utf8_lossy(&unencryption_result.stderr),
+            );
+            exit(1);
+        }
+        
+        // Get the date of statement
+        let input_date = encrypted_file
+            .file_name()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .split("_")
+            .last()
+            .unwrap()
+            .strip_suffix(".PDF")
+            .unwrap();
+        let parsed_input_date = NaiveDate::parse_from_str(input_date, "%d-%m-%Y").unwrap();
+        
+        let statement_year = parsed_input_date.year().to_string();
+        
+        let output_file_name = format!("{}.pdf", parsed_input_date.format("%Y-%m-%d"));
+        
+        let output_file_directory = Path::new(&config.storage_mount_path_local)
+            .join("Bank Accounts")
+            .join("Varun - HDFC")
+            .join("Credit Card statement")
+            .join(statement_year.as_str());
+        
+        
+        // Ensure correct directory exists
+        fs::create_dir_all(&output_file_directory).unwrap();
+        
+        // Copy renamed statement over to the target directory
+        let copy_result = fs::copy(&temp_file, output_file_directory.join(&output_file_name));
+        if copy_result.is_err() {
+            eprintln!("Error copying file: {}", copy_result.unwrap_err());
+            exit(1);
+        }
+        
+        // Delete the temporary file
+        let temporary_deletion_result = fs::remove_file(&temp_file);
+        if temporary_deletion_result.is_err() {
+            eprintln!("Error deleting temporary file: {}", temporary_deletion_result.unwrap_err());
+        }
+        
+        // Delete the file from inbox
+        let deletion_result = fs::remove_file(&encrypted_file);
+        if deletion_result.is_err() {
+            eprintln!("HDFC: Failed to delete file: {}", deletion_result.unwrap_err());
+            exit(1);
+        }
+    }
+
+    Ok(())
 }
 
 fn store_statement_icici() -> std::io::Result<()> {
-  Ok(())
+    Ok(())
 }
 
-pub fn store_credit_card_statements(root_dir: &Path) -> std::io::Result<()> {
-  store_statement_hdfc(root_dir)?;
-  store_statement_icici()?;
-  Ok(())
+pub fn store_credit_card_statements(config: &Config) -> std::io::Result<()> {
+    store_statement_hdfc(config)?;
+    store_statement_icici()?;
+    Ok(())
 }

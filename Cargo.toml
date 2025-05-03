@@ -3,5 +3,10 @@ name = "valet"
 version = "0.1.0"
 edition = "2024"
 
+build = "build.rs"
+
 [dependencies]
+chrono = "0.4.41"
 regex = "1.11.1"
+security-framework = "3.2.0"
+url = "2.5.4"
