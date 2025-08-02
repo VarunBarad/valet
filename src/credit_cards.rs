@@ -186,7 +186,7 @@ fn store_statement_icici(config: &Config) -> std::io::Result<()> {
         let output_file_directory = Path::new(&config.storage_mount_path_local)
             .join("Bank Accounts")
             .join("Varun - ICICI")
-            .join("Credit card statement")
+            .join("Credit Card statement")
             .join(statement_year.as_str());
 
 
