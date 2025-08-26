@@ -75,7 +75,7 @@ fn get_network_share_password() -> std::io::Result<String> {
 
 fn main() {
     let config = Config {
-        storage_mount_path_local: String::from("/Volumes/Legal Documents"),
+        storage_mount_path_local: String::from("/tmp/Volumes/Legal Documents"),
         storage_mount_path_remote: get_storage_mount_path_remote(
             get_network_share_password().unwrap(),
         ),
