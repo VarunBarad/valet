@@ -53,9 +53,7 @@ fn store_statement_hdfc(config: &Config) -> std::io::Result<()> {
 			.to_str()
 			.unwrap()
 			.split("_")
-			.last()
-			.unwrap()
-			.strip_suffix(".PDF")
+            .nth(1)
 			.unwrap();
 		let parsed_input_date = NaiveDate::parse_from_str(input_date, "%d-%m-%Y").unwrap();
 
