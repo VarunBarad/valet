@@ -1,0 +1,16 @@
+hard_tabs = true
+#indent_style = "Block"
+match_block_trailing_comma = true
+max_width = 120
+#imports_granularity = "Item"
+#reorder_impl_items = false
+reorder_imports = true
+#group_imports = "StdExternalCrate"
+reorder_modules = true
+#space_after_colon = true
+#space_before_colon = false
+#spaces_around_ranges = false
+#struct_lit_single_line = true
+tab_spaces = 4
+#trailing_comma = "Always"
+#trailing_semicolon = true
