@@ -35,7 +35,7 @@ fn store_statement_hdfc(config: &Config) -> std::io::Result<()> {
             .output()?;
 
         let status_code = unencryption_result.status.code().unwrap();
-        if status_code != 0 {
+        if status_code != 0 && status_code != 3 {
             eprintln!(
                 "Error unencrypting HDFC credit-card statement. File: {}. Status code: {}. Command stdout: {}. Command stderr: {}.",
                 encrypted_file.display().to_string().as_str(),
