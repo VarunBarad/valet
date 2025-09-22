@@ -1,11 +1,13 @@
 use crate::Config;
 use chrono::{Datelike, NaiveDate};
+use log::{error, info};
 use regex::{Regex, RegexBuilder};
 use std::fs;
 use std::path::Path;
 use std::process::{exit, Command};
 
 fn store_statement_hdfc(config: &Config) -> std::io::Result<()> {
+	info!("Processing HDFC credit card statements");
 	let card_name_pattern = Regex::new(r"5589").expect("HDFC: Invalid card name regex");
 
 	// Find any matching files in downloads folder
@@ -22,8 +24,11 @@ fn store_statement_hdfc(config: &Config) -> std::io::Result<()> {
 		}
 	}
 
+	info!("Found {} HDFC statement files to process", matches.len());
+
 	// For each file
 	for encrypted_file in matches {
+		info!("Processing HDFC file: {}", encrypted_file.display());
 		let temp_file = Path::new(&config.temp_dir).join("unencrypted_hdfc.pdf");
 
 		// Unencrypt the file
@@ -36,7 +41,7 @@ fn store_statement_hdfc(config: &Config) -> std::io::Result<()> {
 
 		let status_code = unencryption_result.status.code().unwrap();
 		if status_code != 0 && status_code != 2 && status_code != 3 {
-			eprintln!(
+			error!(
                 "Error unencrypting HDFC credit-card statement. File: {}. Status code: {}. Command stdout: {}. Command stderr: {}.",
                 encrypted_file.display().to_string().as_str(),
                 status_code,
@@ -45,6 +50,7 @@ fn store_statement_hdfc(config: &Config) -> std::io::Result<()> {
             );
 			exit(1);
 		}
+		info!("Successfully decrypted HDFC file");
 
 		// Get the date of statement
 		let input_date = encrypted_file
@@ -60,6 +66,7 @@ fn store_statement_hdfc(config: &Config) -> std::io::Result<()> {
 		let statement_year = parsed_input_date.year().to_string();
 
 		let output_file_name = format!("{}.pdf", parsed_input_date.format("%Y-%m-%d"));
+		info!("HDFC statement date: {}, output file: {}", parsed_input_date.format("%Y-%m-%d"), output_file_name);
 
 		let output_file_directory = Path::new(&config.storage_mount_path_local)
 			.join("Bank Accounts")
@@ -71,27 +78,30 @@ fn store_statement_hdfc(config: &Config) -> std::io::Result<()> {
 		fs::create_dir_all(&output_file_directory).unwrap();
 
 		// Copy renamed statement over to the target directory
+		info!("Copying HDFC file to: {}", output_file_directory.join(&output_file_name).display());
 		let copy_result = fs::copy(&temp_file, output_file_directory.join(&output_file_name));
 		if copy_result.is_err() {
-			eprintln!("Error copying file: {}", copy_result.unwrap_err());
+			error!("Error copying file: {}", copy_result.unwrap_err());
 			exit(1);
 		}
 
 		// Delete the temporary file
 		let temporary_deletion_result = fs::remove_file(&temp_file);
 		if temporary_deletion_result.is_err() {
-			eprintln!(
+			error!(
 				"Error deleting temporary file: {}",
 				temporary_deletion_result.unwrap_err()
 			);
 		}
 
 		// Delete the file from inbox
+		info!("Deleting processed HDFC file from inbox");
 		let deletion_result = fs::remove_file(&encrypted_file);
 		if deletion_result.is_err() {
-			eprintln!("HDFC: Failed to delete file: {}", deletion_result.unwrap_err());
+			error!("HDFC: Failed to delete file: {}", deletion_result.unwrap_err());
 			exit(1);
 		}
+		info!("Successfully processed HDFC file: {}", output_file_name);
 	}
 
 	Ok(())
@@ -131,6 +141,7 @@ fn icici_get_statement_date(statement_file: &Path) -> Option<NaiveDate> {
 }
 
 fn store_statement_icici(config: &Config) -> std::io::Result<()> {
+	info!("Processing ICICI credit card statements");
 	let card_name_pattern = Regex::new(r"5241").expect("ICICI: Invalid card name regex");
 
 	// Find any matching files in downloads folder
@@ -147,8 +158,11 @@ fn store_statement_icici(config: &Config) -> std::io::Result<()> {
 		}
 	}
 
+	info!("Found {} ICICI statement files to process", matches.len());
+
 	// For each file
 	for encrypted_file in matches {
+		info!("Processing ICICI file: {}", encrypted_file.display());
 		let temp_file = Path::new(&config.temp_dir).join("unencrypted_icici.pdf");
 
 		// Unencrypt the file
@@ -162,7 +176,7 @@ fn store_statement_icici(config: &Config) -> std::io::Result<()> {
 		let status_code = unencryption_result.status.code().unwrap();
 
 		if status_code != 0 && status_code != 3 {
-			eprintln!(
+			error!(
                 "Error unencrypting ICICI credit-card statement. File: {}. Status code: {}. Command stdout: {}. Command stderr: {}.",
                 encrypted_file.display().to_string().as_str(),
                 status_code,
@@ -171,6 +185,7 @@ fn store_statement_icici(config: &Config) -> std::io::Result<()> {
             );
 			exit(1);
 		}
+		info!("Successfully decrypted ICICI file");
 
 		// Get the date of statement
 		let parsed_input_date = icici_get_statement_date(&temp_file).unwrap();
@@ -178,6 +193,7 @@ fn store_statement_icici(config: &Config) -> std::io::Result<()> {
 		let statement_year = parsed_input_date.year().to_string();
 
 		let output_file_name = format!("{}.pdf", parsed_input_date.format("%Y-%m-%d"));
+		info!("ICICI statement date: {}, output file: {}", parsed_input_date.format("%Y-%m-%d"), output_file_name);
 
 		let output_file_directory = Path::new(&config.storage_mount_path_local)
 			.join("Bank Accounts")
@@ -189,34 +205,39 @@ fn store_statement_icici(config: &Config) -> std::io::Result<()> {
 		fs::create_dir_all(&output_file_directory).unwrap();
 
 		// Copy renamed statement over to the target directory
+		info!("Copying ICICI file to: {}", output_file_directory.join(&output_file_name).display());
 		let copy_result = fs::copy(&temp_file, output_file_directory.join(&output_file_name));
 		if copy_result.is_err() {
-			eprintln!("Error copying file: {}", copy_result.unwrap_err());
+			error!("Error copying file: {}", copy_result.unwrap_err());
 			exit(1);
 		}
 
 		// Delete the temporary file
 		let temporary_deletion_result = fs::remove_file(&temp_file);
 		if temporary_deletion_result.is_err() {
-			eprintln!(
+			error!(
 				"Error deleting temporary file: {}",
 				temporary_deletion_result.unwrap_err()
 			);
 		}
 
 		// Delete the file from inbox
+		info!("Deleting processed ICICI file from inbox");
 		let deletion_result = fs::remove_file(&encrypted_file);
 		if deletion_result.is_err() {
-			eprintln!("ICICI: Failed to delete file: {}", deletion_result.unwrap_err());
+			error!("ICICI: Failed to delete file: {}", deletion_result.unwrap_err());
 			exit(1);
 		}
+		info!("Successfully processed ICICI file: {}", output_file_name);
 	}
 
 	Ok(())
 }
 
 pub fn store_credit_card_statements(config: &Config) -> std::io::Result<()> {
+	info!("Starting credit card statement processing");
 	store_statement_hdfc(config)?;
 	store_statement_icici(config)?;
+	info!("Completed credit card statement processing");
 	Ok(())
 }
